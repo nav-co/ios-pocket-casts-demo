@@ -21,5 +21,4 @@ jobs:
       - name: Build app
         run: |
           cd pocket-casts-ios
-          env NSUnbufferedIO=YES xcodebuild build -scheme Signal -workspace Signal.xcworkspace CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
           set -o pipefail && xcodebuild "archive" "-project" "podcasts.xcodeproj" "-scheme" "Pocket Casts Prototype Build" "-destination" "generic/platform=iOS Simulator" | xcpretty
