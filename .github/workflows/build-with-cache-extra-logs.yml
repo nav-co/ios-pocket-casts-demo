@@ -47,7 +47,6 @@ jobs:
 
       - name: Parse Build Timing with XCLogParser
         if: always()
-        working-directory: src/samples-ios-swift-swiftui
         run: |
           # Parse to JSON format for analysis
           xclogparser parse \
