@@ -19,7 +19,7 @@ jobs:
           make install_dependencies
           make external_contributor
       - name: Enable Xcode Build Cache
-        working-directory: src/pocket-casts-ios
+        working-directory: pocket-casts-ios
         shell: bash
         env:
           BITRISE_BUILD_CACHE_AUTH_TOKEN: ${{secrets.BITRISE_PAT}}
@@ -37,9 +37,8 @@ jobs:
         run: brew install xclogparser
         
       - name: Build app
-        working-directory: src/pocket-casts-ios
+        working-directory: pocket-casts-ios
         run: |
-          cd pocket-casts-ios
           set -o pipefail && xcodebuild "archive" \
             "-project" "podcasts.xcodeproj" \
             "-scheme" "Pocket Casts Prototype Build" \
@@ -48,7 +47,7 @@ jobs:
             "-destination" "generic/platform=iOS Simulator" | xcpretty
 
       - name: Parse Build Timing with XCLogParser
-        working-directory: src/pocket-casts-ios
+        working-directory: pocket-casts-ios
         if: always()
         run: |
           # Parse to JSON format for analysis
@@ -77,8 +76,8 @@ jobs:
         with:
           name: build-timing-reports
           path: |
-            src/pocket-casts-ios/build-results/build-timing.json
-            src/pocket-casts-ios/build-results/build-timing.html
-            src/pocket-casts-ios/build-results/build-timing.json.gz
-            src/pocket-casts-ios/build-results/analyze-result.xcresult
+            pocket-casts-ios/build-results/build-timing.json
+            pocket-casts-ios/build-results/build-timing.html
+            pocket-casts-ios/build-results/build-timing.json.gz
+            pocket-casts-ios/build-results/analyze-result.xcresult
           retention-days: 30
