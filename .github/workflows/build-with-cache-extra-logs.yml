@@ -1,4 +1,4 @@
-name: Build With Cache
+name: Build With Cache With Extra Logs
 on:
   #push:
   workflow_dispatch:
