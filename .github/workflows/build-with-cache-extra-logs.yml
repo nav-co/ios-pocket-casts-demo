@@ -52,22 +52,19 @@ jobs:
         run: |
           # Parse to JSON format for analysis
           xclogparser parse \
-            #--xcodeproj podcasts.xcodeproj \
-            --derived-data DerivedDataFolder \
+            --xcodeproj podcasts.xcodeproj \
             --reporter json \
             --output build-results/build-timing.json
 
           # Parse to HTML format for visualization
           xclogparser parse \
-            #--xcodeproj podcasts.xcodeproj \
-            --derived-data DerivedDataFolder \
+            --xcodeproj podcasts.xcodeproj \
             --reporter html \
             --output build-results/build-timing.html
 
           # Parse to Chrome Tracer format for detailed timeline visualization
           xclogparser parse \
-            #--xcodeproj podcasts.xcodeproj \
-            --derived-data DerivedDataFolder \
+            --xcodeproj podcasts.xcodeproj \
             --reporter chromeTracer \
             --output build-results/build-timing.json.gz
 
