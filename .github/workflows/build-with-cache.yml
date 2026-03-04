@@ -32,6 +32,8 @@ jobs:
           # run the CLI to enable Bitrise build cache for Xcode
           /tmp/bin/bitrise-build-cache activate xcode --cache --cache-push
       - name: Build app
+        env: 
+          DEVELOPER_DIR: /Applications/Xcode-26.2.0.app/Contents/Developer
         run: |
           cd pocket-casts-ios
           set -o pipefail && xcodebuild "archive" "-project" "podcasts.xcodeproj" "-scheme" "Pocket Casts Prototype Build" "-destination" "generic/platform=iOS Simulator" | xcpretty
