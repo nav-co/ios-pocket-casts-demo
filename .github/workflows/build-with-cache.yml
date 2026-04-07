@@ -1,6 +1,8 @@
 name: Build With Cache
 on:
   #push:
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 jobs:
   # This workflow contains a single job called "build"
