@@ -9,7 +9,7 @@ jobs:
   build:
     # The type of runner that the job will run on
     runs-on:
-      group: Bitrise-M4Pro
+      group: Bitrise-M4Pro-GithubApp
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
