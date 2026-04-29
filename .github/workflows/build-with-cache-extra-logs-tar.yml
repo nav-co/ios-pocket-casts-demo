@@ -77,12 +77,7 @@ jobs:
           
       - name: Tar Build Timing Reports
         if: always()
-        run: |
-          tar -czf build-timing-reports.tar.gz \
-            pocket-casts-ios/build-results/build-timing.json
-            pocket-casts-ios/build-results/build-timing.html
-            pocket-casts-ios/build-results/build-timing.json.gz
-            pocket-casts-ios/build-results/analyze-result.xcresult
+        run: tar -czf build-timing-reports.tar.gz -C pocket-casts-ios/build-results .
                 
       - name: Upload Build Timing Reports
         if: always()
