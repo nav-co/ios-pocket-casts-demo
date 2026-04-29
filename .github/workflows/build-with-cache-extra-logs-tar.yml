@@ -1,0 +1,93 @@
+name: Build With Cache With Extra Logs tar
+on:
+  #push:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on:
+      group: Bitrise-M4Pro
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Runs a set of commands using the runners shell
+      - name: Update xcbeautify
+        run: |
+          brew upgrade xcbeautify
+      - name: Setup Pockets Casts iOS
+        run: |
+          git clone --depth=1 --recurse-submodules https://github.com/benbitrise/pocket-casts-ios
+          cd pocket-casts-ios
+          make install_dependencies
+          make external_contributor
+      - name: Enable Xcode Build Cache
+        working-directory: pocket-casts-ios
+        shell: bash
+        env:
+          BITRISE_BUILD_CACHE_AUTH_TOKEN: ${{secrets.BITRISE_PAT}}
+          BITRISE_BUILD_CACHE_WORKSPACE_ID: ${{secrets.BITRISE_WORKSPACE_ID}}
+        run: |
+          #!/usr/bin/env bash
+          set -euxo pipefail
+          
+          # download Bitrise Build Cache CLI
+          curl --retry 5 -sSfL 'https://raw.githubusercontent.com/bitrise-io/bitrise-build-cache-cli/main/install/installer.sh' | sh -s -- -b /tmp/bin -d
+          # run the CLI to enable Bitrise build cache for Xcode
+          /tmp/bin/bitrise-build-cache activate xcode --cache --cache-push
+          
+      - name: Install XCLogParser
+        run: brew install xclogparser
+        
+      - name: Build app
+        working-directory: pocket-casts-ios
+        run: |
+          set -o pipefail && xcodebuild "archive" \
+            "-project" "podcasts.xcodeproj" \
+            "-scheme" "Pocket Casts Prototype Build" \
+            "-showBuildTimingSummary" \
+            "-resultBundlePath" "build-results/analyze-result.xcresult" \
+            "-destination" "generic/platform=iOS Simulator" | xcpretty
+
+      - name: Parse Build Timing with XCLogParser
+        working-directory: pocket-casts-ios
+        if: always()
+        run: |
+          # Parse to JSON format for analysis
+          xclogparser parse \
+            --xcodeproj podcasts.xcodeproj \
+            --reporter json \
+            --output build-results/build-timing.json
+
+          # Parse to HTML format for visualization
+          xclogparser parse \
+            --xcodeproj podcasts.xcodeproj \
+            --reporter html \
+            --output build-results/build-timing.html
+
+          # Parse to Chrome Tracer format for detailed timeline visualization
+          xclogparser parse \
+            --xcodeproj podcasts.xcodeproj \
+            --reporter chromeTracer \
+            --output build-results/build-timing.json.gz
+
+          echo "✅ Build timing reports generated"
+          
+      - name: Tar Build Timing Reports
+        if: always()
+        run: |
+          tar -czf build-timing-reports.tar.gz \
+            pocket-casts-ios/build-results/build-timing.json
+            pocket-casts-ios/build-results/build-timing.html
+            pocket-casts-ios/build-results/build-timing.json.gz
+            pocket-casts-ios/build-results/analyze-result.xcresult
+                
+      - name: Upload Build Timing Reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-timing-reports
+          path: build-timing-reports.tar.gz
+          retention-days: 30
