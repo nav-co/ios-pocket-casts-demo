@@ -1,0 +1,66 @@
+name: Build With and Withoug Cache
+on:
+  #push:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+jobs:
+  with-cache:
+    # The type of runner that the job will run on
+    runs-on: [bitrise_pool_name:Bitrise-M4Pro, image:osx-sequoia-26]
+
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Runs a set of commands using the runners shell
+      - name: Setup Pockets Casts iOS
+        run: |
+          git clone --depth=1 --recurse-submodules https://github.com/benbitrise/pocket-casts-ios
+          cd pocket-casts-ios
+          make install_dependencies
+          make external_contributor
+      - name: Enable Xcode Build Cache
+        shell: bash
+        env:
+          BITRISE_BUILD_CACHE_AUTH_TOKEN: ${{secrets.BITRISE_PAT}}
+          BITRISE_BUILD_CACHE_WORKSPACE_ID: ${{secrets.BITRISE_WORKSPACE_ID}}
+        run: |
+          #!/usr/bin/env bash
+          set -euxo pipefail
+          
+          # download Bitrise Build Cache CLI
+          curl --retry 5 -sSfL 'https://raw.githubusercontent.com/bitrise-io/bitrise-build-cache-cli/main/install/installer.sh' | sh -s -- -b /tmp/bin -d
+          # run the CLI to enable Bitrise build cache for Xcode
+          /tmp/bin/bitrise-build-cache activate xcode --cache --cache-push
+      - name: Build app
+        env: 
+          DEVELOPER_DIR: /Applications/Xcode-26.2.0.app/Contents/Developer
+        run: |
+          cd pocket-casts-ios
+          set -o pipefail && xcodebuild "archive" "-project" "podcasts.xcodeproj" "-scheme" "Pocket Casts Prototype Build" "-destination" "generic/platform=iOS Simulator" | xcpretty
+          
+   without-cache:
+    # The type of runner that the job will run on
+    runs-on: [bitrise_pool_name:Bitrise-M4Pro, image:osx-sequoia-26]
+
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Runs a set of commands using the runners shell
+      - name: Setup Pockets Casts iOS
+        run: |
+          git clone --depth=1 --recurse-submodules https://github.com/benbitrise/pocket-casts-ios
+          cd pocket-casts-ios
+          make install_dependencies
+          make external_contributor
+     
+      - name: Build app
+        env: 
+          DEVELOPER_DIR: /Applications/Xcode-26.2.0.app/Contents/Developer
+        run: |
+          cd pocket-casts-ios
+          set -o pipefail && xcodebuild "archive" "-project" "podcasts.xcodeproj" "-scheme" "Pocket Casts Prototype Build" "-destination" "generic/platform=iOS Simulator" | xcpretty
+
+
+
+    
