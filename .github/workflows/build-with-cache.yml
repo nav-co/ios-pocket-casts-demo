@@ -2,6 +2,10 @@ name: Build With Cache
 on:
   #push:
   workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        default: false
 jobs:
   # This workflow contains a single job called "build"
   build:
@@ -32,6 +36,13 @@ jobs:
           curl --retry 5 -sSfL 'https://raw.githubusercontent.com/bitrise-io/bitrise-build-cache-cli/main/install/installer.sh' | sh -s -- -b /tmp/bin -d
           # run the CLI to enable Bitrise build cache for Xcode
           /tmp/bin/bitrise-build-cache activate xcode --cache --cache-push
+      - name: Debug SSH
+        if: ${{ !cancelled() && (inputs.debug_enabled || (failure() && runner.debug == '1')) }}
+        uses: naveen-bitrise/buildhub-debug-ssh@v1
+        with:
+          relay-host: ${{ vars.RELAY_HOST }}
+          relay-known-hosts: ${{ vars.RELAY_KNOWN_HOSTS }}
+          tunnel-key: ${{ secrets.RELAY_TUNNEL_KEY }}
       - name: Build app
         #env: 
           #DEVELOPER_DIR: /Applications/Xcode-26.2.0.app/Contents/Developer
