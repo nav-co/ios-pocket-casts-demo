@@ -1,0 +1,86 @@
+# Example workflow: SSH debug session on a Bitrise runner via your own SSH relay VM.
+#
+# Needs:
+#   - setup-debug-relay.sh run once (secret RELAY_TUNNEL_KEY,
+#     variables RELAY_HOST and RELAY_KNOWN_HOSTS)
+#   - warmup-debug-sshd.sh in the runner pool's warm-up script
+#
+# Opens a session when a step fails, or on a manual run with debug_enabled=true.
+# Only the GitHub user who triggered (or re-ran) the job can log in, with the
+# SSH key on their GitHub profile. Finish with:  touch ~/continue
+
+name: SSH Debug Example
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: Open an SSH debug session
+        default: false
+
+jobs:
+  build:
+    runs-on: bitrise-runner-Bitrise-M4Pro-GHApp
+    steps:
+      - name: Open debug SSH session
+        if: ${{ failure() || inputs.debug_enabled }}
+        timeout-minutes: 45
+        shell: bash
+        env:
+          RELAY_HOST: ${{ vars.RELAY_HOST }}
+          RELAY_KNOWN_HOSTS: ${{ vars.RELAY_KNOWN_HOSTS }}
+          RELAY_TUNNEL_KEY: ${{ secrets.RELAY_TUNNEL_KEY }}
+          ACTOR: ${{ github.triggering_actor }}
+          DEBUG_SSHD_PORT: 10022   # must match the warm-up script
+        run: |
+          set -uo pipefail
+
+          # 0. Debug sshd from the warm-up script must be running
+          if ! nc -z 127.0.0.1 "$DEBUG_SSHD_PORT" 2>/dev/null; then
+            echo "::error::Debug sshd not running on this runner (add warmup-debug-sshd.sh to the pool warm-up)"
+            exit 1
+          fi
+
+          # 1. Only the triggering GitHub user's keys may log in (replaces any previous keys)
+          if ! curl -fsSL "https://github.com/${ACTOR}.keys" -o ~/.ssh/debug_authorized_keys \
+             || [ ! -s ~/.ssh/debug_authorized_keys ]; then
+            echo "::error::No SSH keys found on github.com/${ACTOR}. Add one at github.com/settings/keys"
+            exit 1
+          fi
+          chmod 600 ~/.ssh/debug_authorized_keys
+
+          # 2. Reverse tunnel: public port on the relay -> this runner's debug sshd
+          KEY=$(mktemp) && chmod 600 "$KEY" && printf '%s\n' "$RELAY_TUNNEL_KEY" > "$KEY"
+          KH=$(mktemp) && printf '%s\n' "$RELAY_KNOWN_HOSTS" > "$KH"
+          LOG=$(mktemp)
+          ssh -i "$KEY" -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=yes \
+              -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+              -N -R "0.0.0.0:0:127.0.0.1:$DEBUG_SSHD_PORT" "tunnel@$RELAY_HOST" 2>"$LOG" &
+
+          PORT=""
+          for i in $(seq 1 15); do
+            PORT=$(grep -oE 'Allocated port [0-9]+' "$LOG" | awk '{print $3}')
+            [ -n "$PORT" ] && break
+            sleep 2
+          done
+          if [ -z "$PORT" ]; then echo "Tunnel failed:"; cat "$LOG"; exit 1; fi
+
+          # 3. Tell the developer where to connect (+ runner host key fingerprint to verify)
+          ALIAS="bitrise-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          CMD="ssh -o HostKeyAlias=$ALIAS -p $PORT $(whoami)@$RELAY_HOST"
+          FP=$(ssh-keygen -lf /opt/debug-sshd/ssh_host_ed25519_key.pub | awk '{print $2}')
+          echo "::notice title=Debug SSH (for ${ACTOR})::$CMD"
+          {
+            echo "### Debug SSH (only @${ACTOR} can log in)"
+            echo '```'
+            echo "$CMD"
+            echo '```'
+            echo "Runner host key fingerprint: \`$FP\`"
+            echo
+            echo 'Run `touch ~/continue` when done.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # 4. Keep the VM alive until the developer is done (or the timeout hits)
+          until [ -f ~/continue ]; do sleep 10; done
+          rm -f "$KEY" ~/.ssh/debug_authorized_keys
