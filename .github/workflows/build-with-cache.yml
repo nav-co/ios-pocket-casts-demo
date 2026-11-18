@@ -11,8 +11,9 @@ jobs:
   build:
     # The type of runner that the job will run on
     #runs-on: [bitrise_pool_name:Bitrise-M4Pro, image:osx-tahoe-26]
-    #runs-on: bitrise-runner-Bitrise-M4Pro-GHApp
-    runs-on: bitrise-runner-Bitrise-M4Pro
+    #runs-on: bitrise-runner-Bitrise-M4Pro
+    runs-on: bitrise-runner-Bitrise-M4Pro-GHApp
+    
 
 
     # Steps represent a sequence of tasks that will be executed as part of the job
